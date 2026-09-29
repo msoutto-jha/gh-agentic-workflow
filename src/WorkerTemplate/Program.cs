@@ -1,4 +1,4 @@
-using TestWorker;
+using WorkerTemplate;
 
 var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddHostedService<Worker>();

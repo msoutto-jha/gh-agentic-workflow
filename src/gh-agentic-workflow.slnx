@@ -1,2 +1,4 @@
 <Solution>
+  <Project Path="WorkerTemplate/WorkerTemplate.csproj" />
+  <Project Path="WorkerTemplate.Tests/WorkerTemplate.Tests.csproj" />
 </Solution>

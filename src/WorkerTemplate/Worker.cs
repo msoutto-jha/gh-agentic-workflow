@@ -1,4 +1,4 @@
-namespace TestWorker;
+namespace WorkerTemplate;
 
 public class Worker(ILogger<Worker> logger) : BackgroundService
 {
