@@ -75,22 +75,44 @@ gh api -X GET "/repos/${{ github.repository }}/code-scanning/alerts" -f state=op
 If an endpoint returns 403 or 404, the feature is disabled or not enabled for this
 repository. Record that and continue with the other alert source; do not fail the run.
 
-For each alert, capture a stable identity: alert number, alert HTML URL, severity,
-the GHSA/CVE identifier (Dependabot) or rule ID plus file path and line (code scanning),
-and the affected package, manifest, or source file.
+For each alert, capture every identifier you can:
+
+- the **alert tag** — `Dependabot alert #<number>` or `Code scanning alert #<number>`.
+  This is the primary key for everything that follows; the alert number alone is not
+  unique because the two alert types number independently.
+- the alert HTML URL and its API path (`dependabot/alerts/<number>` or
+  `code-scanning/alerts/<number>`)
+- severity
+- GHSA identifier and CVE identifier (Dependabot)
+- rule ID and rule name, plus file path and line (code scanning)
+- affected package name, vulnerable version range, fixed version, and manifest path
+- the dependency scope (direct or transitive) or the affected source file
 
 ## 2. Drop alerts that are already covered
 
-An alert is **already covered** when an open pull request or an open issue, or an item
-closed in the last 30 days, references it. Check with targeted searches before acting:
+An alert is **already covered** when an open pull request or open issue, or one closed
+in the last 30 days, references it. Check in this order and stop at the first match:
 
-- search for the GHSA or CVE identifier
-- search for the alert HTML URL or `dependabot/alerts/<number>` / `code-scanning/alerts/<number>`
-- search for the rule ID together with the affected file path
-- check for an open Dependabot pull request that bumps the same package
+1. **Title match on the alert tag (primary check).** Search issue and pull request
+   *titles* for the exact alert tag captured in step 1, for example:
 
-Skip every covered alert and say so in your final summary. Do not create a duplicate
-pull request or issue.
+   ```bash
+   gh search issues --repo "${{ github.repository }}" --match title "Dependabot alert #12" --state all --limit 20
+   gh search prs    --repo "${{ github.repository }}" --match title "Code scanning alert #7" --state all --limit 20
+   ```
+
+   Confirm the matched title carries the same alert *type* as well as the number.
+
+2. **Identifier match in the body (secondary check).** Only when step 1 finds nothing,
+   search issue and pull request bodies and comments for the other identifiers: GHSA ID,
+   CVE ID, the alert HTML URL or API path, or the rule ID together with the affected
+   file path.
+
+3. **Equivalent in-flight fix.** Check for an open Dependabot or dependency-update pull
+   request that already bumps the same package past the vulnerable range.
+
+Skip every covered alert and list it as skipped in your final summary, naming which check
+matched. Do not create a duplicate pull request or issue.
 
 ## 3. Classify each remaining alert
 
@@ -134,19 +156,33 @@ dotnet test ./src/gh-agentic-workflow.slnx
 If the build or tests fail and you cannot fix it with the same minimal change, abandon
 the pull request and create a triage issue for that alert instead.
 
-Use `create-pull-request` with a body that references the alert explicitly:
+Use `create-pull-request`. The title **must** start with the alert tag so the next run
+finds it by title (the `[security] ` prefix is added automatically):
+
+```text
+Dependabot alert #12: bump Contoso.Json to 4.2.1
+Code scanning alert #7: add null guard in Worker.ExecuteAsync
+```
+
+The body **must** list every identifier captured in step 1:
 
 ```markdown
 ## Security fix
 
-Resolves [<alert title>](<alert HTML URL>) (<severity>, <GHSA/CVE or rule ID>).
+Resolves [<alert title>](<alert HTML URL>) — **<Dependabot|Code scanning> alert #<number>**.
 
 | Field | Value |
 |---|---|
-| Alert | <alert HTML URL> |
+| Alert | <Dependabot\|Code scanning> alert #<number> |
+| Alert URL | <alert HTML URL> |
 | Severity | <severity> |
-| Identifier | <GHSA/CVE or rule ID> |
-| Affected | <package and version range, or file:line> |
+| GHSA | <GHSA ID or n/a> |
+| CVE | <CVE ID or n/a> |
+| Rule | <rule ID / rule name or n/a> |
+| Package | <package name> |
+| Vulnerable range | <range> |
+| Fixed version | <version> |
+| Affected path | <manifest path, or file:line> |
 
 ### Change
 <one or two sentences describing exactly what changed and why it is behavior-preserving>
@@ -158,23 +194,38 @@ Resolves [<alert title>](<alert HTML URL>) (<severity>, <GHSA/CVE or rule ID>).
 <anything a reviewer must confirm>
 ```
 
+Use `n/a` for identifiers that genuinely do not apply; never omit a row and never invent
+a value.
+
 The pull request stays a draft for human review. Never merge, and never change files
 outside the configured allowed paths.
 
 ## 5. Complex fix → triage issue
 
-For each complex-fix alert, create one issue with `create-issue` containing a real
-triage, not a placeholder:
+For each complex-fix alert, create one issue with `create-issue`. The title **must**
+start with the same alert tag (the `[security triage] ` prefix is added automatically):
+
+```text
+Dependabot alert #19: Contoso.Auth 2.x requires breaking upgrade to 3.0
+```
+
+The body must contain a real triage, not a placeholder:
 
 ```markdown
 ## Alert
 
 | Field | Value |
 |---|---|
-| Alert | <alert HTML URL> |
+| Alert | <Dependabot\|Code scanning> alert #<number> |
+| Alert URL | <alert HTML URL> |
 | Severity | <severity> |
-| Identifier | <GHSA/CVE or rule ID> |
-| Affected | <package and version range, or file:line> |
+| GHSA | <GHSA ID or n/a> |
+| CVE | <CVE ID or n/a> |
+| Rule | <rule ID / rule name or n/a> |
+| Package | <package name> |
+| Vulnerable range | <range> |
+| Fixed version | <version or none available> |
+| Affected path | <manifest path, or file:line> |
 | Introduced by | <direct or transitive dependency, or code path> |
 
 ## Impact in this repository
@@ -202,13 +253,18 @@ triage, not a placeholder:
 <one option, with the reason>
 ```
 
-Include the alert URL so the issue is discoverable as coverage for that alert on the
-next run.
+Use `n/a` for identifiers that genuinely do not apply.
+
+The alert tag in the title and the identifier table in the body are what make this issue
+discoverable as coverage for the alert on the next run — never drop either.
 
 ## Safe outputs
 
 - Minimal fixes: `create-pull-request` (draft, max 3 per run).
 - Complex fixes: `create-issue` (max 5 per run).
+- Every pull request and issue title must begin with its alert tag
+  (`Dependabot alert #<number>:` or `Code scanning alert #<number>:`), and every body
+  must contain the full identifier table.
 - Call `noop` with a short reason when every open alert is already referenced by a
   pull request or issue, when there are no open alerts, or when alert APIs are
   unavailable for this repository.
