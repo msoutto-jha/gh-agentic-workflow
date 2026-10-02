@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.Logging;
 using WorkerTemplate;
 
@@ -12,13 +13,20 @@ public class WorkerTests
         var logger = new RecordingLogger<Worker>();
         var worker = new Worker(logger);
         using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var stopwatch = Stopwatch.StartNew();
 
         await worker.StartAsync(timeout.Token);
         var message = await logger.LoggedMessage.WaitAsync(timeout.Token);
+        await logger.SecondLoggedMessage.WaitAsync(timeout.Token);
+        stopwatch.Stop();
 
         Assert.IsTrue(
             message.StartsWith("Worker running at:", StringComparison.Ordinal),
             $"Unexpected log message: {message}");
+        Assert.IsTrue(
+            stopwatch.Elapsed >= TimeSpan.FromMilliseconds(750) &&
+            stopwatch.Elapsed <= TimeSpan.FromSeconds(3),
+            $"Expected the second log after approximately one second, but it took {stopwatch.Elapsed}.");
 
         await worker.StopAsync(timeout.Token);
     }
@@ -27,8 +35,13 @@ public class WorkerTests
     {
         private readonly TaskCompletionSource<string> loggedMessage =
             new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private readonly TaskCompletionSource<string> secondLoggedMessage =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        private int loggedMessageCount;
 
         public Task<string> LoggedMessage => loggedMessage.Task;
+
+        public Task<string> SecondLoggedMessage => secondLoggedMessage.Task;
 
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
 
@@ -43,7 +56,15 @@ public class WorkerTests
         {
             if (logLevel == LogLevel.Information)
             {
-                loggedMessage.TrySetResult(formatter(state, exception));
+                var message = formatter(state, exception);
+                if (Interlocked.Increment(ref loggedMessageCount) == 1)
+                {
+                    loggedMessage.TrySetResult(message);
+                }
+                else
+                {
+                    secondLoggedMessage.TrySetResult(message);
+                }
             }
         }
     }
