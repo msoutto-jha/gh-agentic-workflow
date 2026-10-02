@@ -11,6 +11,7 @@ intent: |
 
 on:
   schedule: weekly
+  workflow_dispatch:
 
 engine: copilot
 
@@ -47,7 +48,7 @@ safe-outputs:
       - "NuGet.config"
       - "nuget.config"
   create-issue:
-    title-prefix: "[security triage] "
+    title-prefix: "[automated-triage] "
     labels: [security, triage]
     max: 5
 
@@ -77,11 +78,12 @@ repository. Record that and continue with the other alert source; do not fail th
 
 For each alert, capture every identifier you can:
 
-- the **alert tag** — `Dependabot alert #<number>` or `Code scanning alert #<number>`.
-  This is the primary key for everything that follows; the alert number alone is not
-  unique because the two alert types number independently.
-- the alert HTML URL and its API path (`dependabot/alerts/<number>` or
-  `code-scanning/alerts/<number>`)
+- the **alert tag** — the alert's API path, written exactly as
+  `dependabot/alerts/<number>` or `code-scanning/alerts/<number>`. This is the primary
+  key for everything that follows: it is copied verbatim from the API response, and it
+  carries the alert type, so it stays unique even though the two alert sources number
+  independently.
+- the alert HTML URL
 - severity
 - GHSA identifier and CVE identifier (Dependabot)
 - rule ID and rule name, plus file path and line (code scanning)
@@ -97,16 +99,16 @@ in the last 30 days, references it. Check in this order and stop at the first ma
    *titles* for the exact alert tag captured in step 1, for example:
 
    ```bash
-   gh search issues --repo "${{ github.repository }}" --match title "Dependabot alert #12" --state all --limit 20
-   gh search prs    --repo "${{ github.repository }}" --match title "Code scanning alert #7" --state all --limit 20
+   gh search issues --repo "${{ github.repository }}" --match title "dependabot/alerts/12" --state all --limit 20
+   gh search prs    --repo "${{ github.repository }}" --match title "code-scanning/alerts/7" --state all --limit 20
    ```
 
-   Confirm the matched title carries the same alert *type* as well as the number.
+   Confirm the matched title contains the tag exactly, not merely a numeric prefix of it
+   (`dependabot/alerts/1` must not match `dependabot/alerts/12`).
 
 2. **Identifier match in the body (secondary check).** Only when step 1 finds nothing,
    search issue and pull request bodies and comments for the other identifiers: GHSA ID,
-   CVE ID, the alert HTML URL or API path, or the rule ID together with the affected
-   file path.
+   CVE ID, the alert HTML URL, or the rule ID together with the affected file path.
 
 3. **Equivalent in-flight fix.** Check for an open Dependabot or dependency-update pull
    request that already bumps the same package past the vulnerable range.
@@ -160,8 +162,8 @@ Use `create-pull-request`. The title **must** start with the alert tag so the ne
 finds it by title (the `[security] ` prefix is added automatically):
 
 ```text
-Dependabot alert #12: bump Contoso.Json to 4.2.1
-Code scanning alert #7: add null guard in Worker.ExecuteAsync
+dependabot/alerts/12: bump Contoso.Json to 4.2.1
+code-scanning/alerts/7: add null guard in Worker.ExecuteAsync
 ```
 
 The body **must** list every identifier captured in step 1:
@@ -169,11 +171,11 @@ The body **must** list every identifier captured in step 1:
 ```markdown
 ## Security fix
 
-Resolves [<alert title>](<alert HTML URL>) — **<Dependabot|Code scanning> alert #<number>**.
+Resolves [<alert title>](<alert HTML URL>) — **`<alert tag>`**.
 
 | Field | Value |
 |---|---|
-| Alert | <Dependabot\|Code scanning> alert #<number> |
+| Alert | `dependabot/alerts/<number>` or `code-scanning/alerts/<number>` |
 | Alert URL | <alert HTML URL> |
 | Severity | <severity> |
 | GHSA | <GHSA ID or n/a> |
@@ -203,10 +205,10 @@ outside the configured allowed paths.
 ## 5. Complex fix → triage issue
 
 For each complex-fix alert, create one issue with `create-issue`. The title **must**
-start with the same alert tag (the `[security triage] ` prefix is added automatically):
+start with the same alert tag (the `[automated-triage] ` prefix is added automatically):
 
 ```text
-Dependabot alert #19: Contoso.Auth 2.x requires breaking upgrade to 3.0
+dependabot/alerts/19: Contoso.Auth 2.x requires breaking upgrade to 3.0
 ```
 
 The body must contain a real triage, not a placeholder:
@@ -216,7 +218,7 @@ The body must contain a real triage, not a placeholder:
 
 | Field | Value |
 |---|---|
-| Alert | <Dependabot\|Code scanning> alert #<number> |
+| Alert | `dependabot/alerts/<number>` or `code-scanning/alerts/<number>` |
 | Alert URL | <alert HTML URL> |
 | Severity | <severity> |
 | GHSA | <GHSA ID or n/a> |
@@ -263,8 +265,8 @@ discoverable as coverage for the alert on the next run — never drop either.
 - Minimal fixes: `create-pull-request` (draft, max 3 per run).
 - Complex fixes: `create-issue` (max 5 per run).
 - Every pull request and issue title must begin with its alert tag
-  (`Dependabot alert #<number>:` or `Code scanning alert #<number>:`), and every body
-  must contain the full identifier table.
+  (`dependabot/alerts/<number>:` or `code-scanning/alerts/<number>:`), copied verbatim
+  from the alert's API path, and every body must contain the full identifier table.
 - Call `noop` with a short reason when every open alert is already referenced by a
   pull request or issue, when there are no open alerts, or when alert APIs are
   unavailable for this repository.
