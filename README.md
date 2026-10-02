@@ -38,7 +38,13 @@ The first patched version for this release line is 5.1.3. The project contains n
 application code, is not referenced by the worker or its tests, and must not be
 used in deployments.
 
-With the dependency graph and Dependabot alerts enabled, this reference on the
+The fixture also intentionally references `Newtonsoft.Json` 12.0.3, affected by
+[GHSA-5crp-9r3c-p9vr](https://github.com/advisories/GHSA-5crp-9r3c-p9vr).
+Its first patched version is 13.0.1. This major-version upgrade is intended to
+exercise the workflow's complex-fix triage issue path rather than a minimal-fix PR.
+No fixture code uses JSON serialization or deserialization.
+
+With the dependency graph and Dependabot alerts enabled, these references on the
 default branch is intended to exercise `.github/workflows/weekly-security-alert-review.md`.
 Keep automatic Dependabot security updates disabled during the exercise if the
 agentic workflow should create the fix PR itself; it skips alerts already covered
@@ -48,4 +54,4 @@ and `System.IdentityModel.Tokens.Jwt` dependencies. The exercise may therefore
 produce multiple alerts, including transitive-dependency triage rather than just
 the direct SqlClient patch-fix PR.
 
-Update or remove the vulnerable reference after the exercise.
+Update or remove the vulnerable references after the exercise.
