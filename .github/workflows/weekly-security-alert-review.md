@@ -34,7 +34,7 @@ network:
 
 safe-outputs:
   create-pull-request:
-    title-prefix: "[security] "
+    title-prefix: "[automated-fix] "
     labels: [security, automated]
     draft: true
     max: 3
@@ -159,7 +159,7 @@ If the build or tests fail and you cannot fix it with the same minimal change, a
 the pull request and create a triage issue for that alert instead.
 
 Use `create-pull-request`. The title **must** start with the alert tag so the next run
-finds it by title (the `[security] ` prefix is added automatically):
+finds it by title (the `[automated-fix] ` prefix is added automatically):
 
 ```text
 dependabot/alerts/12: bump Contoso.Json to 4.2.1
