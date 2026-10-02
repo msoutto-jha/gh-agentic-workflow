@@ -38,11 +38,10 @@ The first patched version for this release line is 5.1.3. The project contains n
 application code, is not referenced by the worker or its tests, and must not be
 used in deployments.
 
-The fixture also intentionally references `Newtonsoft.Json` 12.0.3, affected by
+The fixture previously referenced vulnerable `Newtonsoft.Json` 12.0.3, affected by
 [GHSA-5crp-9r3c-p9vr](https://github.com/advisories/GHSA-5crp-9r3c-p9vr).
-Its first patched version is 13.0.1. This major-version upgrade is intended to
-exercise the workflow's complex-fix triage issue path rather than a minimal-fix PR.
-No fixture code uses JSON serialization or deserialization.
+It now references the first patched version, 13.0.1. No fixture code uses JSON
+serialization or deserialization.
 
 With the dependency graph and Dependabot alerts enabled, these references on the
 default branch is intended to exercise `.github/workflows/weekly-security-alert-review.md`.
