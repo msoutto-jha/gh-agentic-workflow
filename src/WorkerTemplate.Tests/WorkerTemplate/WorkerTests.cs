@@ -1,4 +1,6 @@
 using System.Diagnostics;
+using FakeItEasy;
+using FakeItEasy.Core;
 using Microsoft.Extensions.Logging;
 using WorkerTemplate;
 
@@ -10,62 +12,73 @@ public class WorkerTests
     [TestMethod]
     public async Task StartAsync_LogsWorkerRunning_AndStopAsyncCompletes()
     {
-        var logger = new RecordingLogger<Worker>();
-        var worker = new Worker(logger);
-        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-        var stopwatch = Stopwatch.StartNew();
+        var logger = A.Fake<ILogger<Worker>>();
+        A.CallTo(() => logger.IsEnabled(LogLevel.Information)).Returns(true);
 
-        await worker.StartAsync(timeout.Token);
-        var message = await logger.LoggedMessage.WaitAsync(timeout.Token);
-        await logger.SecondLoggedMessage.WaitAsync(timeout.Token);
-        stopwatch.Stop();
+        var firstHeartbeat = new TaskCompletionSource<string>(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var secondHeartbeat = new TaskCompletionSource(
+            TaskCreationOptions.RunContinuationsAsynchronously);
+        var heartbeatCount = 0;
 
-        Assert.IsTrue(
-            message.StartsWith("Worker running at:", StringComparison.Ordinal),
-            $"Unexpected log message: {message}");
-        Assert.IsTrue(
-            stopwatch.Elapsed >= TimeSpan.FromMilliseconds(750) &&
-            stopwatch.Elapsed <= TimeSpan.FromSeconds(3),
-            $"Expected the second log after approximately one second, but it took {stopwatch.Elapsed}.");
-
-        await worker.StopAsync(timeout.Token);
-    }
-
-    private sealed class RecordingLogger<T> : ILogger<T>
-    {
-        private readonly TaskCompletionSource<string> loggedMessage =
-            new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private readonly TaskCompletionSource<string> secondLoggedMessage =
-            new(TaskCreationOptions.RunContinuationsAsynchronously);
-        private int loggedMessageCount;
-
-        public Task<string> LoggedMessage => loggedMessage.Task;
-
-        public Task<string> SecondLoggedMessage => secondLoggedMessage.Task;
-
-        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
-
-        public bool IsEnabled(LogLevel logLevel) => logLevel == LogLevel.Information;
-
-        public void Log<TState>(
-            LogLevel logLevel,
-            EventId eventId,
-            TState state,
-            Exception? exception,
-            Func<TState, Exception?, string> formatter)
-        {
-            if (logLevel == LogLevel.Information)
+        A.CallTo(logger)
+            .Where(call => IsHeartbeatLog(call))
+            .Invokes(call =>
             {
-                var message = formatter(state, exception);
-                if (Interlocked.Increment(ref loggedMessageCount) == 1)
+                if (Interlocked.Increment(ref heartbeatCount) == 1)
                 {
-                    loggedMessage.TrySetResult(message);
+                    firstHeartbeat.TrySetResult(call.Arguments[2]?.ToString() ?? string.Empty);
                 }
                 else
                 {
-                    secondLoggedMessage.TrySetResult(message);
+                    secondHeartbeat.TrySetResult();
                 }
-            }
+            });
+
+        using var worker = new Worker(logger);
+        using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+        var stopwatch = Stopwatch.StartNew();
+
+        try
+        {
+            await worker.StartAsync(timeout.Token);
+            var message = await firstHeartbeat.Task.WaitAsync(timeout.Token);
+            await secondHeartbeat.Task.WaitAsync(timeout.Token);
+            stopwatch.Stop();
+
+            Assert.IsTrue(
+                message.StartsWith("Worker running at:", StringComparison.Ordinal),
+                $"Unexpected log message: {message}");
+            Assert.IsTrue(
+                stopwatch.Elapsed >= TimeSpan.FromMilliseconds(750) &&
+                stopwatch.Elapsed <= TimeSpan.FromSeconds(3),
+                $"Expected the second log after approximately one second, but it took {stopwatch.Elapsed}.");
         }
+        finally
+        {
+            using var shutdownTimeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            await worker.StopAsync(shutdownTimeout.Token);
+        }
+
+        A.CallTo(() => logger.IsEnabled(LogLevel.Information))
+            .MustHaveHappenedTwiceOrMore();
+        A.CallTo(logger)
+            .Where(call => IsHeartbeatLog(call))
+            .MustHaveHappenedTwiceOrMore();
+    }
+
+    private static bool IsHeartbeatLog(IFakeObjectCall call)
+    {
+        return call.Method.Name == nameof(ILogger.Log)
+            && call.Arguments[0] is LogLevel.Information
+            && call.Arguments[1] is EventId { Id: 0 }
+            && call.Arguments[3] is null
+            && call.Arguments[2] is IEnumerable<KeyValuePair<string, object?>> state
+            && state.Any(property =>
+                property.Key == "{OriginalFormat}"
+                && property.Value is "Worker running at: {time}")
+            && state.Any(property =>
+                property.Key == "time"
+                && property.Value is DateTimeOffset);
     }
 }

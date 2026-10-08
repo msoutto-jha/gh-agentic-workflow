@@ -9,6 +9,10 @@ A small .NET playground for experimenting with GitHub agentic workflows. The rep
 - `src/SecurityAlertFixtures` — non-packable, dependency-only project for exercising Dependabot alert review.
 - `src/gh-agentic-workflow.slnx` — solution containing all three projects.
 
+Worker tests use MSTest assertions and FakeItEasy to verify structured heartbeat
+log calls. The test project also references Shouldly, intentionally without using
+it, as an example for workflow experiments.
+
 ## Requirements
 
 - .NET 10 SDK
