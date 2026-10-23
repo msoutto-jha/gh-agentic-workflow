@@ -19,6 +19,7 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/agent-runtime-instructions.md`
 - `.github/aw/agentic-chat.md`
 - `.github/aw/agentic-workflows-mcp.md`
+- `.github/aw/analyzing-runs.md`
 - `.github/aw/asciicharts.md`
 - `.github/aw/campaign.md`
 - `.github/aw/charts-trending.md`
@@ -31,10 +32,20 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/create-agentic-workflow.md`
 - `.github/aw/create-shared-agentic-workflow.md`
 - `.github/aw/debug-agentic-workflow.md`
+- `.github/aw/debug-bootstrap.md`
+- `.github/aw/debug-compilation.md`
+- `.github/aw/debug-live-testing.md`
+- `.github/aw/debug-model-engine-misconfiguration.md`
+- `.github/aw/debug-playbook.md`
+- `.github/aw/debug-scenarios.md`
+- `.github/aw/debug-security-review.md`
+- `.github/aw/debug-workflow-evidence.md`
+- `.github/aw/debug-workflow-health.md`
 - `.github/aw/dependabot.md`
 - `.github/aw/deployment-status.md`
 - `.github/aw/designer-mappings.md`
 - `.github/aw/designer.md`
+- `.github/aw/documentation-workflows.md`
 - `.github/aw/drive-memory.md`
 - `.github/aw/enclaves.md`
 - `.github/aw/evals.md`
@@ -46,6 +57,7 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/instructions.md`
 - `.github/aw/intent.md`
 - `.github/aw/jobs.md`
+- `.github/aw/ledger.md`
 - `.github/aw/linter-workflows.md`
 - `.github/aw/llms.md`
 - `.github/aw/loop.md`
@@ -74,6 +86,7 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/skills.md`
 - `.github/aw/subagents.md`
 - `.github/aw/syntax-agentic.md`
+- `.github/aw/syntax-checkout.md`
 - `.github/aw/syntax-core.md`
 - `.github/aw/syntax-engine.md`
 - `.github/aw/syntax-tools-imports.md`
@@ -87,6 +100,7 @@ Load these files from `github/gh-aw` (they are not available locally).
 - `.github/aw/update-agentic-workflow.md`
 - `.github/aw/upgrade-agentic-workflows.md`
 - `.github/aw/visual-regression.md`
+- `.github/aw/work-queue.md`
 - `.github/aw/workflow-constraints.md`
 - `.github/aw/workflow-editing.md`
 - `.github/aw/workflow-patterns.md`
